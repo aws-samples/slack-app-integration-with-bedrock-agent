@@ -1,0 +1,208 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Create an API Gateway and a HRAssistant Lambda function
+
+Parameters:
+  SlackToken:
+    Type: String
+    Description: Slack API token for posting messages
+  BedrockAgentId:
+    Type: String
+    Description: Bedrock Agent ID
+  BedrockAliasId:
+    Type: String
+    Description: Bedrock Alias ID
+
+Resources:
+
+  LambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: HRAssistantFunction
+      Runtime: python3.12
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import urllib3
+          import os
+          import re
+          s3 = boto3.resource('s3')
+          
+          from botocore.response import StreamingBody    
+          # Bedrock client used to interact with APIs around models
+
+          http = urllib3.PoolManager()
+
+
+              
+          # Bedrock Runtime client used to invoke and question the models
+          bedrock_runtime = boto3.client(
+          service_name='bedrock-agent-runtime', 
+          region_name='us-east-1'
+          )
+
+          slackUrl = 'https://slack.com/api/chat.postMessage'
+          slackToken = os.environ.get('token')
+              
+          def lambda_handler(event, context):
+          print(event)    
+          slackBody = json.loads(event['body'])
+          slackText = slackBody.get('event').get('text')
+          slackUser = slackBody.get('event').get('user')
+          channel =  slackBody.get('event').get('channel')
+          client_msg_id =  slackBody.get('event').get('client_msg_id')
+          bot_id =  slackBody.get('event').get('bot_id')
+          if bot_id is not None:
+              print('bot')
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps({'msg': "message recevied"})
+              }
+          else:   
+              dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
+              table = dynamodb.Table('Events')
+              msgExists = table.get_item(Key={
+                'eventid': client_msg_id
+              })
+              if(msgExists.get('Item') is not None):
+                  print('bot')
+                  return {
+                  'statusCode': 200,
+                  'body': json.dumps({'msg': "message recevied"})
+                  }
+              else:
+                  table.put_item(
+                  Item={'eventid':client_msg_id}
+                  )
+                  dynamoResponse = table.get_item(Key={
+                    'eventid': channel
+                  })
+                  campaign_event=dynamoResponse.get('Item')
+                  
+                    
+                  query = slackText #json.loads(event.get("body")).get("input").get("query")
+
+                            # The actual call to retrieve an answer from the model
+                  response = bedrock_runtime.invoke_agent(
+                              agentId=os.environ.get('BedrockAgentId'),
+                              agentAliasId=os.environ.get('BedrockAliasId'),
+                              sessionId=client_msg_id,
+                              inputText=slackText,
+                              )
+          # Process and concatenate the response from the agent
+                  completion = ""
+                  for event in response.get("completion"):
+                      chunk = event["chunk"]
+                      completion += chunk["bytes"].decode()
+                  
+                  
+                  print(completion)
+
+                  data = {'channel': channel, 'text': f"{completion}"}
+                  response = http.request('POST', slackUrl, headers={'Content-Type': 'application/json', 'Authorization': f'Bearer {slackToken}'}, body=json.dumps(data))
+                  print(response.data )    
+                  return {
+                          'statusCode': 200,
+                          'body': json.dumps({'msg': "message recevied"})
+                      }    
+
+    
+
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          token: !Ref SlackToken
+          BedrockAgentId: !Ref BedrockAgentId
+          BedrockAliasId: !Ref BedrockAliasId
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  ApiGateway:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: HRAssistantApiGateway
+      Description: HR Assistant API Gateway
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+
+  ApiGatewayResourceRoot:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt ApiGateway.RootResourceId
+      PathPart: api
+      RestApiId: !Ref ApiGateway
+
+  ApiGatewayMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId: !Ref ApiGatewayResourceRoot
+      RestApiId: !Ref ApiGateway
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri: !Join
+          - ''
+          - - 'arn:aws:apigateway:'
+            - !Ref AWS::Region
+            - ':lambda:path/2015-03-31/functions/'
+            - !GetAtt LambdaFunction.Arn
+            - /invocations
+
+  ApiGatewayDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - ApiGatewayMethod
+    Properties:
+      RestApiId: !Ref ApiGateway
+
+  ApiGatewayStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      StageName: dev
+      RestApiId: !Ref ApiGateway
+      DeploymentId: !Ref ApiGatewayDeployment
+
+  LambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref LambdaFunction
+      Principal: apigateway.amazonaws.com
+      Action: lambda:InvokeFunction
+      SourceArn: !Join
+        - ''
+        - - 'arn:aws:execute-api:'
+          - !Ref AWS::Region
+          - ':'
+          - !Ref AWS::AccountId
+          - ':'
+          - !Ref ApiGateway
+          - /*/*
+
+Outputs:
+
+  ApiUrl:
+    Description: URL of the API Gateway
+    Value: !Join
+      - ''
+      - - https://
+        - !Ref ApiGateway
+        - .execute-api.
+        - !Ref AWS::Region
+        - .amazonaws.com/dev/api
