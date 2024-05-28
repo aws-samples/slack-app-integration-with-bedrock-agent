@@ -127,6 +127,6 @@ Action Groups in Amazon Bedrock agent to integrate with HRMS API of your choice 
 ## Additional Resources
 
 - [Slack API Documentation](https://api.slack.com/docs)
-- [Bedrock Agent Documentation](https://docs.bedrock.dev/)
+- [Bedrock Agent Documentation](https://aws.amazon.com/bedrock/resources/)
 - [AWS Lambda Documentation](https://docs.aws.amazon.com/lambda/latest/dg/welcome.html)
 - [AWS API Gateway Documentation](https://docs.aws.amazon.com/apigateway/latest/developerguide/welcome.html)
