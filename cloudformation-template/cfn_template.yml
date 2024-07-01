@@ -45,66 +45,70 @@ Resources:
           slackToken = os.environ.get('token')
               
           def lambda_handler(event, context):
-          print(event)    
-          slackBody = json.loads(event['body'])
-          slackText = slackBody.get('event').get('text')
-          slackUser = slackBody.get('event').get('user')
-          channel =  slackBody.get('event').get('channel')
-          client_msg_id =  slackBody.get('event').get('client_msg_id')
-          bot_id =  slackBody.get('event').get('bot_id')
-          if bot_id is not None:
-              print('bot')
-              return {
-                  'statusCode': 200,
-                  'body': json.dumps({'msg': "message recevied"})
-              }
-          else:   
-              dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
-              table = dynamodb.Table('Events')
-              msgExists = table.get_item(Key={
-                'eventid': client_msg_id
-              })
-              if(msgExists.get('Item') is not None):
-                  print('bot')
-                  return {
-                  'statusCode': 200,
-                  'body': json.dumps({'msg': "message recevied"})
-                  }
-              else:
-                  table.put_item(
-                  Item={'eventid':client_msg_id}
-                  )
-                  dynamoResponse = table.get_item(Key={
-                    'eventid': channel
-                  })
-                  campaign_event=dynamoResponse.get('Item')
-                  
+            print(event)    
+            slackBody = json.loads(event['body'])
+            # return {
+            #                 'statusCode': 200,
+            #                 'body': json.dumps(slackBody)
+            #             } 
+            slackText = slackBody.get('event').get('text')
+            slackUser = slackBody.get('event').get('user')
+            channel =  slackBody.get('event').get('channel')
+            client_msg_id =  slackBody.get('event').get('client_msg_id')
+            bot_id =  slackBody.get('event').get('bot_id')
+            if bot_id is not None:
+                print('bot')
+                return {
+                    'statusCode': 200,
+                    'body': json.dumps({'msg': "message recevied"})
+                }
+            else:   
+                dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
+                table = dynamodb.Table('Events')
+                msgExists = table.get_item(Key={
+                  'eventid': client_msg_id
+                })
+                if(msgExists.get('Item') is not None):
+                    print('bot')
+                    return {
+                    'statusCode': 200,
+                    'body': json.dumps({'msg': "message recevied"})
+                    }
+                else:
+                    table.put_item(
+                    Item={'eventid':client_msg_id}
+                    )
+                    dynamoResponse = table.get_item(Key={
+                      'eventid': channel
+                    })
+                    campaign_event=dynamoResponse.get('Item')
                     
-                  query = slackText #json.loads(event.get("body")).get("input").get("query")
+                      
+                    query = slackText #json.loads(event.get("body")).get("input").get("query")
 
-                            # The actual call to retrieve an answer from the model
-                  response = bedrock_runtime.invoke_agent(
-                              agentId=os.environ.get('BedrockAgentId'),
-                              agentAliasId=os.environ.get('BedrockAliasId'),
-                              sessionId=client_msg_id,
-                              inputText=slackText,
-                              )
-          # Process and concatenate the response from the agent
-                  completion = ""
-                  for event in response.get("completion"):
-                      chunk = event["chunk"]
-                      completion += chunk["bytes"].decode()
-                  
-                  
-                  print(completion)
+                              # The actual call to retrieve an answer from the model
+                    response = bedrock_runtime.invoke_agent(
+                                agentId=os.environ.get('BedrockAgentId'),
+                                agentAliasId=os.environ.get('BedrockAliasId'),
+                                sessionId=client_msg_id,
+                                inputText=slackText,
+                                )
+            # Process and concatenate the response from the agent
+                    completion = ""
+                    for event in response.get("completion"):
+                        chunk = event["chunk"]
+                        completion += chunk["bytes"].decode()
+                    
+                    
+                    print(completion)
 
-                  data = {'channel': channel, 'text': f"{completion}"}
-                  response = http.request('POST', slackUrl, headers={'Content-Type': 'application/json', 'Authorization': f'Bearer {slackToken}'}, body=json.dumps(data))
-                  print(response.data )    
-                  return {
-                          'statusCode': 200,
-                          'body': json.dumps({'msg': "message recevied"})
-                      }    
+                    data = {'channel': channel, 'text': f"{completion}"}
+                    response = http.request('POST', slackUrl, headers={'Content-Type': 'application/json', 'Authorization': f'Bearer {slackToken}'}, body=json.dumps(data))
+                    print(response.data )    
+                    return {
+                            'statusCode': 200,
+                            'body': json.dumps({'msg': "message recevied"})
+                        }    
 
     
 
