@@ -13,7 +13,7 @@ Parameters:
     Description: Bedrock Alias ID
 
 Resources:
-    Events:
+  Events:
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: Events
