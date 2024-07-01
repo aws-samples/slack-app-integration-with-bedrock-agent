@@ -13,7 +13,19 @@ Parameters:
     Description: Bedrock Alias ID
 
 Resources:
-
+    Events:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Events
+      AttributeDefinitions:
+        - AttributeName: eventid
+          AttributeType: S
+      KeySchema:
+        - AttributeName: eventid
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
   LambdaFunction:
     Type: AWS::Lambda::Function
     Properties:
