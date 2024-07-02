@@ -62,7 +62,7 @@ Resources:
           def lambda_handler(event, context):
             print(event)    
             slackBody = json.loads(event['body'])
-            if (slackBody.type=="url_verification")
+            if (slackBody['type']=="url_verification"):
               return {
                              'statusCode': 200,
                              'body': json.dumps(slackBody)
