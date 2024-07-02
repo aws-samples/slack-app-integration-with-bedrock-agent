@@ -11,6 +11,9 @@ Parameters:
   BedrockAliasId:
     Type: String
     Description: Bedrock Alias ID
+  Region:
+    Type: String
+    Description: aws region
 
 Resources:
   Events:
@@ -50,7 +53,7 @@ Resources:
           # Bedrock Runtime client used to invoke and question the models
           bedrock_runtime = boto3.client(
           service_name='bedrock-agent-runtime', 
-          region_name='us-east-1'
+          region_name=os.environ.get('Region')
           )
 
           slackUrl = 'https://slack.com/api/chat.postMessage'
@@ -59,10 +62,11 @@ Resources:
           def lambda_handler(event, context):
             print(event)    
             slackBody = json.loads(event['body'])
-            # return {
-            #                 'statusCode': 200,
-            #                 'body': json.dumps(slackBody)
-            #             } 
+            if (slackBody.type=="url_verification")
+              return {
+                             'statusCode': 200,
+                             'body': json.dumps(slackBody)
+                         } 
             slackText = slackBody.get('event').get('text')
             slackUser = slackBody.get('event').get('user')
             channel =  slackBody.get('event').get('channel')
@@ -131,6 +135,7 @@ Resources:
           token: !Ref SlackToken
           BedrockAgentId: !Ref BedrockAgentId
           BedrockAliasId: !Ref BedrockAliasId
+          Region: !Ref Region
 
   LambdaExecutionRole:
     Type: AWS::IAM::Role
