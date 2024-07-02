@@ -87,8 +87,11 @@ In the AWS Lambda console, navigate to the function created by the CloudFormatio
 
 ![Set Token](static/70_set_environment_variable.png)
 
+10. **Add Required Permissions to Lambda function Execution Role**
 
-10. **Test the Integration**
+In the "Configuration" tab, go to Permissions, open the Execution Role & add permissions to invoke Bedrock alias and read-write DynamoDB table named `Events`
+
+11. **Test the Integration**
 
 In your Slack workspace, create Slack Command and then try asking HR-related questions using the `/hr` command or by mentioning the app's name (e.g., `/hr What is the company's vacation policy?`). The app will route the query to the Bedrock Agent, which will search the HR policy documents and provide a relevant response.
 
