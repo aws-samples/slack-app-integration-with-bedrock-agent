@@ -72,7 +72,7 @@ Resources:
             channel =  slackBody.get('event').get('channel')
             client_msg_id =  slackBody.get('event').get('client_msg_id')
             bot_id =  slackBody.get('event').get('bot_id')
-            if bot_id is not None:
+            if bot_id is not None or client_msg_id is None:
                 print('bot')
                 return {
                     'statusCode': 200,
@@ -85,22 +85,18 @@ Resources:
                   'eventid': client_msg_id
                 })
                 if(msgExists.get('Item') is not None):
-                    print('bot')
+                    print('message already in process')
                     return {
                     'statusCode': 200,
-                    'body': json.dumps({'msg': "message recevied"})
+                    'body': json.dumps({'msg': "message already recevied and awaiting response from model"})
                     }
                 else:
                     table.put_item(
                     Item={'eventid':client_msg_id}
                     )
-                    dynamoResponse = table.get_item(Key={
-                      'eventid': channel
-                    })
-                    campaign_event=dynamoResponse.get('Item')
                     
                       
-                    query = slackText #json.loads(event.get("body")).get("input").get("query")
+                    query = slackText
 
                               # The actual call to retrieve an answer from the model
                     response = bedrock_runtime.invoke_agent(
