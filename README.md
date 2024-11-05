@@ -83,7 +83,7 @@ After installing the app, navigate to the "OAuth & Permissions" section and copy
 
 9. **Replace Environment Variable in Lambda Function**
 
-In the AWS Lambda console, navigate to the function created by the CloudFormation template. In the "Configuration" tab, update the `token`, `BedrockAgentId` and `BedrockAliasId`, environment variable with the OAuth token you copied in the previous step.
+In the AWS Lambda console, navigate to the function created by the CloudFormation template. In the "Configuration" tab, update the environment variable `BedrockAgentId` and `BedrockAliasId` with actual AgentId and AliasId, `token` with the OAuth token you copied in the previous step.
 
 ![Set Token](static/70_set_environment_variable.png)
 
